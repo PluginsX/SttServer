@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASR 实时语音识别 Demo</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 ASR 实时语音识别 Demo</h1>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">未连接</span>
+            </div>
+            <div class="status-indicator">
+                <span class="status-text" id="taskIdText">Task ID: -</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <!-- 1. 服务器配置 -->
+            <div class="module module-server-config">
+                <div class="module-title">1. 服务器配置</div>
+                <div class="config-row">
+                    <label class="config-label">服务类型:</label>
+                    <select class="config-input" id="serviceType" onchange="updateServerUrl()">
+                        <option value="local" selected>本地服务</option>
+                        <option value="aliyun">阿里云服务</option>
+                    </select>
+                </div>
+                <div class="config-row">
+                    <label class="config-label">服务地址:</label>
+                    <input type="text" class="config-input" id="serverUrl" value="ws://localhost:8000/ws" placeholder="例如: wss://dashscope.aliyuncs.com/api-ws/v1/inference">
+                </div>
+                <script>
+                    function updateServerUrl() {
+                        const serviceType = document.getElementById('serviceType').value;
+                        const serverUrl = document.getElementById('serverUrl');
+                        const apiKey = document.getElementById('apiKey');
+                        const model = document.getElementById('model');
+                        if (serviceType === 'aliyun') {
+                            serverUrl.value = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference';
+                            apiKey.value = 'sk-a7558f9302974d1891906107f6033939';
+                            model.value = 'paraformer-realtime-v2';
+                        } else {
+                            serverUrl.value = 'ws://localhost:8000/ws';
+                            apiKey.value = 'AsrServer';
+                            model.value = 'paraformer-zh-streaming';
+                        }
+                    }
+                </script>
+                <div class="config-row">
+                    <label class="config-label">API Key:</label>
+                    <input type="password" class="config-input" id="apiKey" placeholder="阿里云DASHSCOPE_API_KEY">
+                </div>
+                <div class="config-row">
+                    <label class="config-label">模型:</label>
+                    <input type="text" class="config-input" id="model" list="model-suggestions" placeholder="例如: paraformer-realtime-v2" value="">
+                    <datalist id="model-suggestions">
+                        <option value="paraformer-realtime-v2">paraformer-realtime-v2（推荐）</option>
+                        <option value="paraformer-realtime-8k-v2">paraformer-realtime-8k-v2（推荐）</option>
+                        <option value="paraformer-realtime-v1">paraformer-realtime-v1</option>
+                        <option value="paraformer-realtime-8k-v1">paraformer-realtime-8k-v1</option>
+                        <option value="paraformer-realtime">paraformer-realtime</option>
+                        <option value="paraformer-realtime-8k">paraformer-realtime-8k</option>
+                    </datalist>
+                </div>
+                <div class="config-row" style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="testConnection()" style="margin-left: 190px;">测试连接</button>
+                </div>
+                
+                <!-- 2.1 服务器API调用参数配置 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">2.1 服务器API调用参数配置</div>
+                    <div class="config-row">
+                        <label class="config-label">采样率:</label>
+                        <select class="config-input" id="sampleRate">
+                            <option value="16000">16000 Hz</option>
+                            <option value="8000">8000 Hz</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">音频格式:</label>
+                        <select class="config-input" id="audioFormat">
+                            <option value="pcm" selected>PCM</option>
+                            <option value="wav">WAV</option>
+                            <option value="mp3">MP3</option>
+                            <option value="opus">Opus</option>
+                            <option value="speex">Speex</option>
+                            <option value="aac">AAC</option>
+                            <option value="amr">AMR</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">标点预测:</label>
+                        <input type="checkbox" class="config-checkbox" id="punctuationEnabled" checked>
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">文本归一化:</label>
+                        <input type="checkbox" class="config-checkbox" id="normalizationEnabled" checked>
+                    </div>
+
+                    <div class="config-row">
+                        <label class="config-label">启用语义断句:</label>
+                        <input type="checkbox" class="config-checkbox" id="semanticPunctuationEnabled">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">静音时长阈值:</label>
+                        <input type="number" class="config-input" id="maxSentenceSilence" value="800" min="200" max="6000" step="100">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">启用多阈值模式:</label>
+                        <input type="checkbox" class="config-checkbox" id="multiThresholdModeEnabled">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">过滤语气词:</label>
+                        <input type="checkbox" class="config-checkbox" id="disfluencyRemovalEnabled">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">启用心跳:</label>
+                        <input type="checkbox" class="config-checkbox" id="heartbeatEnabled">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">语言提示:</label>
+                        <select class="config-input" id="languageHints">
+                            <option value="auto" selected>自动</option>
+                            <option value="zh">中文</option>
+                            <option value="en">英文</option>
+                            <option value="ja">日语</option>
+                            <option value="yue">粤语</option>
+                            <option value="ko">韩语</option>
+                            <option value="de">德语</option>
+                            <option value="fr">法语</option>
+                            <option value="ru">俄语</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">热词ID:</label>
+                        <input type="text" class="config-input" id="vocabularyId" placeholder="可选，热词ID">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 2. 配置参数 -->
+            <div class="module module-config">
+                <div class="module-title">2. 配置参数</div>
+                
+                <!-- 2.1 预处理配置 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">2.1 客户端预处理参数配置</div>
+                    <div class="config-row">
+                        <label class="config-label">启用 VAD 预处理:</label>
+                        <input type="checkbox" class="config-checkbox" id="vadEnabled">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">VAD 模式:</label>
+                        <select class="config-input" id="vadMode">
+                            <option value="0">模式 0 (最宽松)</option>
+                            <option value="1">模式 1</option>
+                            <option value="2">模式 2</option>
+                            <option value="3">模式 3 (最严格)</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">静音时长阈值:</label>
+                        <input type="number" class="config-input" id="silenceDuration" value="800" min="100" max="3000" step="100">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">静音阈值:</label>
+                        <input type="number" class="config-input" id="silenceThreshold" value="0.01" min="0.001" max="0.1" step="0.001">
+                    </div>
+                    <div class="config-row">
+                        <label class="config-label">采样率:</label>
+                        <select class="config-input" id="localSampleRate">
+                            <option value="16000">16000 Hz</option>
+                            <option value="8000">8000 Hz</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 2.2 实时音频强度 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">2.2 实时音频强度</div>
+                    <div class="audio-intensity-container">
+                        <canvas id="audioIntensityCanvas" class="audio-intensity-canvas"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 2.3 发出音频列表 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">2.3 发出音频列表</div>
+                    <div class="audio-list-container">
+                        <div id="audioList" class="audio-list"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3. 控制和结果 -->
+            <div class="module module-control-result">
+                <div class="module-title">3. 控制和结果</div>
+                
+                <!-- 3.1 四个操作按钮 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">3.1 四个操作按钮</div>
+                    <div class="control-panel">
+                        <button class="btn btn-primary" id="connectBtn" onclick="connect()">连接</button>
+                        <button class="btn btn-primary" id="startBtn" onclick="startRecognition()" disabled>开始识别</button>
+                        <button class="btn btn-danger" id="stopBtn" onclick="stopRecognition()" disabled>停止识别</button>
+                        <button class="btn btn-danger" id="disconnectBtn" onclick="disconnect()" disabled>断开连接</button>
+                    </div>
+                </div>
+                
+                <!-- 3.2 识别结果 -->
+                <div class="sub-module">
+                    <div class="sub-module-title">3.2 识别结果</div>
+                    <div class="result-area">
+                        <div class="result-text" id="resultText">等待开始识别...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 4. 控制台输出 -->
+        <div class="module module-log">
+            <div class="module-title">4. 控制台输出</div>
+            <div class="log-area" id="logArea">
+                <div class="log-entry"><span class="log-time">[系统]</span> 欢迎使用 ASR 实时语音识别 Demo</div>
+                <div class="log-entry"><span class="log-time">[系统]</span> 提示: 此客户端理论上兼容阿里云DashScope WebSocket API</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/lib/AsrClient.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

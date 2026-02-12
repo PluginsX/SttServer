@@ -1,0 +1,49 @@
+flowchart TD
+    subgraph Client_Side[客户端]
+        A[Web_Demo\nindex.html] --> B[AsrClient\n客户端库]
+        B --> C[AudioProcessor\n音频处理]
+        C --> D[AudioWorklet\n实时处理]
+        B --> E[WebSocket_Connection\n连接管理]
+    end
+    
+    subgraph Server_Side[服务器端]
+        F[FastAPI_Server\n主服务器] --> G[WebSocket_Handler\n连接处理]
+        G --> H[Audio_Processor\n音频处理]
+        H --> I[ASR_Model\n语音识别模型]
+        G --> J[Session_Manager\n会话管理]
+    end
+    
+    subgraph External_Services[外部服务]
+        K[Aliyun_ASR\n阿里云服务]
+    end
+    
+    E <--> |WebSocket通信| G
+    B <--> |API调用| K
+    
+    subgraph Data_Flow[数据流程]
+        direction LR
+        D1[音频采集] --> |PCM数据| D2[VAD处理]
+        D2 --> |语音片段| D3[WebSocket发送]
+        D3 --> |音频数据| D4[服务器处理]
+        D4 --> |模型推理| D5[识别结果]
+        D5 --> |WebSocket推送| D6[客户端显示]
+    end
+    
+    subgraph Components[核心组件]
+        direction LR
+        C1[WebSocket_Handler\n连接管理] --> C2[Audio_Processor\n音频处理]
+        C2 --> C3[ASR_Model\n语音识别]
+        C3 --> C4[Result_Generator\n结果生成]
+    end
+    
+    classDef client fill:#e3f2fd,stroke:#2196f3,stroke-width:2px;
+    classDef server fill:#e8f5e8,stroke:#4caf50,stroke-width:2px;
+    classDef external fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef data fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px;
+    classDef component fill:#fffde7,stroke:#ffc107,stroke-width:2px;
+    
+    class Client_Side client;
+    class Server_Side server;
+    class External_Services external;
+    class Data_Flow data;
+    class Components component;
